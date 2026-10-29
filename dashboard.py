@@ -21,6 +21,31 @@ with st.sidebar:
         requests.post(f"{API}/reset-demo")
         st.info("Demo data restored")
     st.divider()
+    with st.expander("✍️ Type sales data manually"):
+        st.caption("Add rows: date, item, qty. Need at least 6 months of data per item.")
+        template = pd.DataFrame({"date": [pd.Timestamp("2025-01-15")], "item": ["Pepper"], "qty": [100.0]})
+        typed = st.data_editor(
+            template,
+            num_rows="dynamic",
+            key="typed_rows",
+            column_config={
+                "date": st.column_config.DateColumn("Date", required=True),
+                "item": st.column_config.TextColumn("Item", required=True),
+                "qty": st.column_config.NumberColumn("Qty", min_value=0.0, required=True),
+            },
+        )
+        if st.button("Use typed data"):
+            clean = typed.dropna()
+            if clean.empty:
+                st.error("Add at least one row.")
+            else:
+                csv = clean.to_csv(index=False).encode()
+                r = requests.post(f"{API}/upload", files={"file": ("typed.csv", csv)}, timeout=60)
+                if r.ok:
+                    st.success(f"Loaded {r.json()}")
+                else:
+                    st.error(r.json().get("detail", "Upload failed"))
+    st.divider()
     horizon = st.slider("Forecast months", 1, 12, 3)
     stock = st.number_input("Current stock (units)", min_value=0.0, value=500.0, step=10.0)
     lead = st.number_input("Supplier lead time (days)", min_value=1, value=7)
@@ -80,13 +105,13 @@ else:
 
 fig = go.Figure()
 fig.add_scatter(x=hist["date"], y=hist["qty"], name="Actual", mode="lines+markers")
-fig.add_scatter(x=fc["date"], y=fc["upper"], line=dict(width=0), showlegend=False, hoverinfo="skip")
-fig.add_scatter(x=fc["date"], y=fc["lower"], fill="tonexty", line=dict(width=0),
+fig.add_scatter(x=fc["date"], y=fc["upper"], mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip")
+fig.add_scatter(x=fc["date"], y=fc["lower"], mode="lines", fill="tonexty", line=dict(width=0),
                 name="80% range", fillcolor="rgba(255,127,14,0.2)")
 fig.add_scatter(x=fc["date"], y=fc["qty"], name="Forecast", mode="lines+markers",
                 line=dict(dash="dash"))
 fig.update_layout(height=450, margin=dict(l=10, r=10, t=10, b=10), yaxis_title="Units / month")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.subheader("Insight")
 st.write(d.get("explanation", ""))
