@@ -1,5 +1,7 @@
 # Sales Forecasting Dashboard
 
+**Live demo:** https://sales-forecast-dashboard-umlq.onrender.com (synthetic data; first load may take ~1 min on free tier)
+
 Upload shop sales data (CSV/Excel) and get item-wise demand forecasts, reorder alerts and plain-language insights.
 
 ## Features
@@ -36,3 +38,4 @@ docker compose up --build
 - LightGBM model + model comparison
 - Auth, per-shop data isolation
 - Replace synthetic data with real U.M.Traders sales
+
