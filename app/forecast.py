@@ -58,7 +58,9 @@ def backtest(y: pd.Series, horizon: int = 3, folds: int = 3) -> dict:
     hw = float(np.nanmean(hw_err)) if hw_err else float("nan")
     nv = float(np.nanmean(nv_err)) if nv_err else float("nan")
     improvement = (nv - hw) / nv * 100 if nv and not np.isnan(nv) and not np.isnan(hw) else float("nan")
-    return {"mape_model": hw, "mape_baseline": nv, "improvement_pct": improvement}
+    # JSON cannot hold NaN: report "not enough data to backtest" as None
+    clean = lambda x: None if x is None or np.isnan(x) else float(x)
+    return {"mape_model": clean(hw), "mape_baseline": clean(nv), "improvement_pct": clean(improvement)}
 
 
 def forecast_item(monthly: pd.DataFrame, item: str, horizon: int = 1) -> dict:

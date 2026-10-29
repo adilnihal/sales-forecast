@@ -16,6 +16,18 @@ def test_forecast_and_backtest():
     assert bt["mape_model"] < 40
 
 
+def test_short_history_has_json_safe_backtest():
+    import pandas as pd
+    # 12 months only: too short to backtest, must not produce NaN (breaks JSON)
+    csv = "date,item,qty\n" + "\n".join(f"2025-{m:02d}-15,Tea,{40+m}" for m in range(1, 13))
+    r = client.post("/upload", files={"file": ("tea.csv", csv.encode())})
+    assert r.status_code == 200
+    r = client.get("/forecast/Tea", params={"horizon": 2})
+    assert r.status_code == 200
+    assert r.json()["backtest"]["mape_model"] is None
+    client.post("/reset-demo")
+
+
 def test_reorder_logic():
     low = reorder_advice(900, 1000, current_stock=50)
     assert low["needs_reorder"] and low["suggested_order_qty"] > 0

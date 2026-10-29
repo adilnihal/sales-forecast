@@ -8,6 +8,22 @@ import streamlit as st
 
 API = os.getenv("API_URL", "http://localhost:8000")
 
+def sample_rows(months: int = 12) -> pd.DataFrame:
+    """Sample monthly sales (4 items x 12 months) to fill the manual-entry table."""
+    import numpy as np
+
+    rng = np.random.default_rng(7)
+    end = pd.Timestamp.today().normalize().replace(day=1) - pd.offsets.MonthBegin(1)
+    dates = pd.date_range(end=end, periods=months, freq="MS") + pd.Timedelta(days=14)
+    base = {"Pepper": 1500, "Arecanut": 2500, "Rubber Sheet": 1400, "Coconut Oil": 900}
+    rows = []
+    for item, b in base.items():
+        for i, d in enumerate(dates):
+            season = 1 + 0.25 * np.cos(2 * np.pi * (d.month - 12) / 12)
+            rows.append({"date": d, "item": item, "qty": float(round(b * season * rng.uniform(0.93, 1.07)))})
+    return pd.DataFrame(rows)
+
+
 st.set_page_config(page_title="Sales Forecast", page_icon="📈", layout="wide")
 st.title("📈 Sales Forecasting Dashboard")
 
@@ -23,11 +39,19 @@ with st.sidebar:
     st.divider()
     with st.expander("✍️ Type sales data manually"):
         st.caption("Add rows: date, item, qty. Need at least 6 months of data per item.")
-        template = pd.DataFrame({"date": [pd.Timestamp("2025-01-15")], "item": ["Pepper"], "qty": [100.0]})
+        if "typed_df" not in st.session_state:
+            st.session_state.typed_df = pd.DataFrame(
+                {"date": [pd.Timestamp("2025-01-15")], "item": ["Pepper"], "qty": [100.0]}
+            )
+            st.session_state.typed_ver = 0
+        if st.button("Auto-fill sample data"):
+            st.session_state.typed_df = sample_rows()
+            st.session_state.typed_ver += 1  # new key forces the table to reload
+            st.rerun()
         typed = st.data_editor(
-            template,
+            st.session_state.typed_df,
             num_rows="dynamic",
-            key="typed_rows",
+            key=f"typed_rows_{st.session_state.typed_ver}",
             column_config={
                 "date": st.column_config.DateColumn("Date", required=True),
                 "item": st.column_config.TextColumn("Item", required=True),
@@ -95,8 +119,11 @@ c1.metric("Next month forecast", f"{nxt['qty']:.0f}")
 c2.metric("Likely range", f"{nxt['lower']:.0f} - {nxt['upper']:.0f}")
 c3.metric("Days of cover", re.get("days_of_cover", "-"))
 bt = d["backtest"]
-c4.metric("Model MAPE", f"{bt['mape_model']:.1f}%",
-          delta=f"{bt['improvement_pct']:.0f}% better than naive", delta_color="normal")
+if bt["mape_model"] is None:
+    c4.metric("Model MAPE", "n/a", help="Needs ~15+ months of history to backtest accuracy")
+else:
+    c4.metric("Model MAPE", f"{bt['mape_model']:.1f}%",
+              delta=f"{bt['improvement_pct']:.0f}% better than naive", delta_color="normal")
 
 if re.get("needs_reorder"):
     st.error(f"⚠️ Reorder now. Suggested order: {re['suggested_order_qty']:.0f} units")
