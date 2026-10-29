@@ -25,18 +25,34 @@ with st.sidebar:
     stock = st.number_input("Current stock (units)", min_value=0.0, value=500.0, step=10.0)
     lead = st.number_input("Supplier lead time (days)", min_value=1, value=7)
 
+def api_get(path, params=None, tries=3, timeout=45):
+    """GET with retries: free-tier APIs sleep and take ~1 min to wake up."""
+    last = None
+    for _ in range(tries):
+        try:
+            return requests.get(f"{API}{path}", params=params, timeout=timeout)
+        except requests.exceptions.RequestException as e:
+            last = e
+    raise last
+
+
 try:
-    items = requests.get(f"{API}/items", timeout=10).json()
+    with st.spinner("Waking up the API (free tier can take ~1 minute)..."):
+        items = api_get("/items").json()
 except Exception:
-    st.error(f"Cannot reach API at {API}")
+    st.error(f"Cannot reach API at {API}. Refresh in a minute.")
     st.stop()
 
 item = st.selectbox("Item", items)
-res = requests.get(
-    f"{API}/forecast/{item}",
-    params={"horizon": horizon, "current_stock": stock, "lead_time_days": lead},
-    timeout=60,
-)
+try:
+    with st.spinner("Computing forecast..."):
+        res = api_get(
+            f"/forecast/{item}",
+            params={"horizon": horizon, "current_stock": stock, "lead_time_days": lead},
+        )
+except Exception:
+    st.error("API is slow to respond. Refresh in a minute.")
+    st.stop()
 if not res.ok:
     st.warning(res.json().get("detail"))
     st.stop()

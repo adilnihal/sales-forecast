@@ -13,6 +13,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 # In-memory store (single-user demo). Swap for PostgreSQL later.
 STATE: dict = {"monthly": to_monthly(synthetic_sales()), "source": "synthetic"}
+CACHE: dict = {}  # (source, item, horizon) -> forecast result; cleared when data changes
 
 
 @app.get("/health")
@@ -26,6 +27,7 @@ async def upload(file: UploadFile = File(...)):
         df = load_bytes(await file.read(), file.filename or "data.csv")
         STATE["monthly"] = to_monthly(df)
         STATE["source"] = file.filename
+        CACHE.clear()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"items": sorted(STATE["monthly"]["item"].unique().tolist()),
@@ -36,6 +38,7 @@ async def upload(file: UploadFile = File(...)):
 def reset_demo():
     STATE["monthly"] = to_monthly(synthetic_sales())
     STATE["source"] = "synthetic"
+    CACHE.clear()
     return {"status": "reset", "source": "synthetic"}
 
 
@@ -49,8 +52,11 @@ def forecast(item: str, horizon: int = 3, current_stock: float | None = None,
              lead_time_days: int = 7, explain: bool = True):
     if not 1 <= horizon <= 12:
         raise HTTPException(status_code=400, detail="horizon must be 1-12")
+    key = (STATE["source"], item, horizon)
     try:
-        res = forecast_item(STATE["monthly"], item, horizon)
+        if key not in CACHE:
+            CACHE[key] = forecast_item(STATE["monthly"], item, horizon)
+        res = dict(CACHE[key])  # shallow copy so per-request fields don't leak into cache
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Unknown item '{item}'")
     except ValueError as e:
