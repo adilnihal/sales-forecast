@@ -1,14 +1,41 @@
+# Whole stack: docker compose up --build   ->  open http://localhost:3000
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: shop
+      POSTGRES_DB: shop
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shop"]
+      interval: 5s
+      retries: 10
+
   api:
     build: .
     ports: ["8000:8000"]
     environment:
+      - DATABASE_URL=postgresql://shop:shop@db:5432/shop
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/health')"]
       interval: 15s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    ports: ["3000:3000"]
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   dashboard:
@@ -21,3 +48,6 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  pgdata:

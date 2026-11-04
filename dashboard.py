@@ -120,7 +120,7 @@ c2.metric("Likely range", f"{nxt['lower']:.0f} - {nxt['upper']:.0f}")
 c3.metric("Days of cover", re.get("days_of_cover", "-"))
 bt = d["backtest"]
 if bt["mape_model"] is None:
-    c4.metric("Model MAPE", "n/a", help="Needs ~15+ months of history to backtest accuracy")
+    c4.metric("Model MAPE", "n/a", help="Needs about 27 months of history to test accuracy")
 else:
     c4.metric("Model MAPE", f"{bt['mape_model']:.1f}%",
               delta=f"{bt['improvement_pct']:.0f}% better than naive", delta_color="normal")

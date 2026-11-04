@@ -48,7 +48,7 @@ def backtest(y: pd.Series, horizon: int = 3, folds: int = 3) -> dict:
     hw_err, nv_err = [], []
     for k in range(folds, 0, -1):
         cut = len(y) - k * horizon
-        if cut < SEASON + 2:
+        if cut < 2 * SEASON:  # fewer than 2 seasons would test a different (non-seasonal) model
             continue
         train, test = y.iloc[:cut], y.iloc[cut: cut + horizon].values
         if len(test) < horizon:

@@ -4,11 +4,15 @@ from __future__ import annotations
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from .billing import router as billing_router
 from .data import load_bytes, synthetic_sales, to_monthly
+from .db import init_db
 from .forecast import forecast_item, reorder_advice
 from .llm import llm_explain
 
-app = FastAPI(title="Sales Forecasting API", version="0.1.0")
+app = FastAPI(title="Sales, Billing & Forecasting API", version="0.2.0")
+init_db()
+app.include_router(billing_router)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # In-memory store (single-user demo). Swap for PostgreSQL later.

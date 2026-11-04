@@ -1,7 +1,5 @@
 # Sales Forecasting Dashboard
 
-**Live demo:** https://sales-forecast-dashboard-umlq.onrender.com (synthetic data; first load may take ~1 min on free tier)
-
 Upload shop sales data (CSV/Excel) and get item-wise demand forecasts, reorder alerts and plain-language insights.
 
 ## Features
@@ -39,3 +37,16 @@ docker compose up --build
 - Auth, per-shop data isolation
 - Replace synthetic data with real U.M.Traders sales
 
+## Shop Ledger (billing frontend)
+
+Next.js frontend (`web/`) on top of the API: type sales bills and purchase bills with rate and GST,
+see stock and the GST summary, and get forecasts from your own bills.
+
+Run everything: `docker compose up --build`, then open http://localhost:3000
+
+- API: FastAPI + SQLAlchemy. `DATABASE_URL` selects PostgreSQL; without it a local SQLite file is used.
+- Web: Next.js. `API_URL` points to the API (the browser only talks to the web service).
+- "Load sample data" on the Overview page fills 3 years of demo bills (synthetic). Delete them before entering real data.
+
+Render: create a PostgreSQL database, set `DATABASE_URL` (Internal URL) on the API service, then add a
+Docker web service with root directory `web` and `API_URL` = the API's URL.
