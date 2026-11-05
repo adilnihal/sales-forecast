@@ -27,9 +27,15 @@ function explain(detail: unknown): string {
   return "Something went wrong.";
 }
 
+const WAKING = "The server is waking up (free hosting sleeps when unused). Wait a minute, then press Try again.";
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isGet = (init?.method ?? "GET") === "GET";
+  // A sleeping free-tier API needs up to ~1 minute to start, so reads keep trying for about that long.
+  const attempts = isGet ? 16 : 2;
   let lastError: ApiError | null = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 4000));
     let res: Response;
     try {
       res = await fetch(`${BASE}${path}`, {
@@ -39,13 +45,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       });
     } catch {
       lastError = new ApiError("Can't reach the server. Check your internet connection.", 0);
-      await new Promise((r) => setTimeout(r, 1500));
       continue;
     }
-    // 502/503/504 = the free-tier API is still waking up: retry quietly.
-    if ([502, 503, 504].includes(res.status) && (init?.method ?? "GET") === "GET") {
-      lastError = new ApiError("The server is waking up. Try again in a minute.", res.status);
-      await new Promise((r) => setTimeout(r, 2500));
+    const json = (res.headers.get("content-type") ?? "").includes("json");
+    // Not a real answer from our API (gateway errors, HTML "starting up" pages): treat as waking up.
+    if (isGet && (res.status >= 500 || res.status === 429 || (!res.ok && !json))) {
+      lastError = new ApiError(WAKING, res.status);
       continue;
     }
     if (!res.ok) {
@@ -55,7 +60,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       } catch {
         /* non-JSON error body */
       }
-      throw new ApiError(explain(detail), res.status);
+      throw new ApiError(res.status >= 500 && !json ? WAKING : explain(detail), res.status);
     }
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
