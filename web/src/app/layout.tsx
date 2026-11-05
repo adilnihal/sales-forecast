@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
+import { RegisterSW } from "@/components/RegisterSW";
 
 export const metadata: Metadata = {
   title: { default: "Shop Ledger", template: "%s · Shop Ledger" },
   description: "Sales and purchase bills, stock, GST and demand forecast for a small trading shop.",
+  appleWebApp: { capable: true, title: "Shop Ledger", statusBarStyle: "default" },
+  icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
 };
 
 export const viewport: Viewport = {
@@ -28,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <RegisterSW />
         <div className="shell">
           <Nav />
           <main className="main">{children}</main>
