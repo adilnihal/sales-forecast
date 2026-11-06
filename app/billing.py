@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import datetime as dt
+import hmac
 import os
 from collections import defaultdict
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -27,7 +28,15 @@ from .schemas import (
     PartyOut,
 )
 
-router = APIRouter(prefix="/v1", tags=["billing"])
+def require_key(x_api_key: str = Header(default="")) -> None:
+    """If API_KEY is set, every /v1 call must carry it. The web app adds it; the public cannot.
+    Not set (local use) = no check."""
+    expected = os.getenv("API_KEY", "")
+    if expected and not hmac.compare_digest(x_api_key.encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="Not allowed.")
+
+
+router = APIRouter(prefix="/v1", tags=["billing"], dependencies=[Depends(require_key)])
 
 
 # ---------------------------------------------------------------- helpers

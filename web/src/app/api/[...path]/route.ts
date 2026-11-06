@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { COOKIE, validSession } from "@/lib/auth";
 
 // Browser -> /api/v1/... -> this proxy -> FastAPI. The backend URL is read at runtime (API_URL),
 // so one built image works for any environment, and the browser never needs CORS.
@@ -12,10 +13,16 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
   if (!ALLOWED_ROOTS.has(path[0])) {
     return NextResponse.json({ detail: "Not found" }, { status: 404 });
   }
+  if (!(await validSession(req.cookies.get(COOKIE)?.value))) {
+    return NextResponse.json({ detail: "Please log in." }, { status: 401 });
+  }
   const url = `${API}/${path.map(encodeURIComponent).join("/")}${req.nextUrl.search}`;
   const init: RequestInit = {
     method: req.method,
-    headers: { "content-type": req.headers.get("content-type") ?? "application/json" },
+    headers: {
+      "content-type": req.headers.get("content-type") ?? "application/json",
+      ...(process.env.API_KEY ? { "x-api-key": process.env.API_KEY } : {}),
+    },
     cache: "no-store",
     signal: AbortSignal.timeout(90_000), // a sleeping free-tier API can take ~1 minute to wake
   };

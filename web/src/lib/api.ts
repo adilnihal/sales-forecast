@@ -47,6 +47,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       lastError = new ApiError("Can't reach the server. Check your internet connection.", 0);
       continue;
     }
+    if (res.status === 401) {
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") window.location.href = "/login";
+      throw new ApiError("Please log in.", 401);
+    }
     const json = (res.headers.get("content-type") ?? "").includes("json");
     // Not a real answer from our API (gateway errors, HTML "starting up" pages): treat as waking up.
     if (isGet && (res.status >= 500 || res.status === 429 || (!res.ok && !json))) {

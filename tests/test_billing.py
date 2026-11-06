@@ -115,3 +115,17 @@ def test_forecast_needs_history():
     r = client.get(f"/v1/forecast/{gid}")
     assert r.status_code == 422 and "6 full months" in r.json()["detail"]
     assert client.get("/v1/forecast/9999").status_code == 404
+
+
+def test_api_key_protects_billing_routes(monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.api import app
+
+    c = TestClient(app)
+    monkeypatch.setenv("API_KEY", "secret-123")
+    assert c.get("/v1/items").status_code == 401
+    assert c.get("/v1/items", headers={"x-api-key": "wrong"}).status_code == 401
+    assert c.get("/v1/items", headers={"x-api-key": "secret-123"}).status_code == 200
+    assert c.get("/health").status_code == 200  # health stays open for the host's checks
+    monkeypatch.delenv("API_KEY")
+    assert c.get("/v1/items").status_code == 200  # local use needs no key

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 const Icon = ({ children }: { children: ReactNode }) => (
@@ -20,6 +20,18 @@ const LINKS: { href: string; label: string; short: string; icon: ReactNode }[] =
 
 export function Nav() {
   const path = usePathname();
+  const [canLogout, setCanLogout] = useState(false);
+  useEffect(() => {
+    fetch("/api/auth/status", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setCanLogout(Boolean(d.required && d.authed)))
+      .catch(() => {});
+  }, [path]);
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  };
+  if (path === "/login") return null;
   const active = (href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
   return (
     <>
@@ -42,6 +54,9 @@ export function Nav() {
             </Link>
           ))}
         </nav>
+        {canLogout && (
+          <button type="button" className="btn small" style={{ margin: "16px 14px" }} onClick={logout}>Log out</button>
+        )}
       </aside>
       <nav className="tabbar noprint" aria-label="Main">
         {LINKS.map((l) => (
